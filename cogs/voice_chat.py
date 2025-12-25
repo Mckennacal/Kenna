@@ -1,8 +1,10 @@
 import discord
 from discord.ext import commands
 import asyncio
-from utils.neural import get_kenna_response
+import os
+from utils.neural import get_kenna_response, clear_user_memory
 from utils.speech import generate_voice_file
+from utils.ears import listen_to_mic, calibrate_mic # New import
 import config
 
 class VoiceChat(commands.Cog):
@@ -13,44 +15,67 @@ class VoiceChat(commands.Cog):
 
     @commands.command()
     async def join(self, ctx):
-        """Joins VC and starts the local mic listening loop."""
+        """Joins VC, calibrates mic once, and starts the loop."""
         if not ctx.author.voice:
             return await ctx.send("Join a voice channel first, loser.")
 
         channel = ctx.author.voice.channel
         vc = await channel.connect()
         self.is_listening = True
-        await ctx.send(f"I'm in. Voice: `{self.current_voice}`. Talk to your mic.")
+        
+        await ctx.send(f"I'm in. Voice: `{self.current_voice}`. Calibrating mic (shhh)...")
+        
+        # 1. Calibrate ONCE at the start (runs in background so bot doesn't freeze)
+        await self.bot.loop.run_in_executor(None, calibrate_mic)
+        await ctx.send("🎤 Calibration done. Start talking.")
 
         # --- The Listening Loop ---
-        # We run this in the background so it doesn't freeze the bot
         while vc.is_connected() and self.is_listening:
-            # We import the mic listener here to keep the cog clean
-            from kenna import listen_to_mic 
+            # 2. Listen (Non-blocking)
             user_speech = await self.bot.loop.run_in_executor(None, listen_to_mic)
 
             if user_speech:
-                print(f"You said: {user_speech}")
+                print(f"You ({ctx.author.name}) said: {user_speech}")
                 
-                # Check for exit commands
                 if any(word in user_speech.lower() for word in ['quit', 'exit', 'stop']):
                     self.is_listening = False
+                    await ctx.send("Bye.")
                     await vc.disconnect()
                     break
 
-                # 1. Get Brain Response from utils/neural.py
-                reply = get_kenna_response(ctx.author.id, user_speech)
-                
-                # 2. Generate Voice from utils/speech.py
-                audio_file = generate_voice_file(reply, self.current_voice, config.VOICE_SPEED)
+                # Show 'Typing' status so you know she heard you
+                async with ctx.typing():
+                    # 3. Think (Non-blocking - fixes the freeze!)
+                    reply = await self.bot.loop.run_in_executor(
+                        None, get_kenna_response, ctx.author.id, user_speech
+                    )
+                    
+                    # 4. Generate Audio (Non-blocking)
+                    audio_file = await self.bot.loop.run_in_executor(
+                        None, generate_voice_file, reply, self.current_voice, config.VOICE_SPEED
+                    )
 
-                # 3. Play in Discord
+                # 5. Play Audio
                 if vc.is_playing():
                     vc.stop()
                 
-                vc.play(discord.FFmpegPCMAudio(audio_file))
+                # Define a callback to delete the file after it finishes playing
+                def after_playing(error):
+                    if audio_file and os.path.exists(audio_file):
+                        os.remove(audio_file)
 
-            await asyncio.sleep(0.1)
+                vc.play(discord.FFmpegPCMAudio(audio_file), after=after_playing)
+
+            await asyncio.sleep(0.05) # Slightly faster loop
+
+    @commands.command()
+    async def forget(self, ctx):
+        """Wipes Kenna's memory of YOU."""
+        cleared = clear_user_memory(ctx.author.id)
+        if cleared:
+            await ctx.send(f"Who are you again? (Memory wiped for {ctx.author.name})")
+        else:
+            await ctx.send("I already don't know who you are.")
 
     @commands.command()
     async def voice(self, ctx, new_voice: str):
