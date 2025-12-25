@@ -49,6 +49,8 @@ class VoiceChat(commands.Cog):
                     reply = await self.bot.loop.run_in_executor(
                         None, get_kenna_response, ctx.author.id, user_speech
                     )
+
+                    print(f"Kenna: {reply}")
                     
                     # 4. Generate Audio (Non-blocking)
                     audio_file = await self.bot.loop.run_in_executor(

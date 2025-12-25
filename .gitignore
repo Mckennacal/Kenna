@@ -3,6 +3,7 @@ __pycache__/
 *.wav
 *.pyc
 .env
+memory.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
