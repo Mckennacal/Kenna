@@ -39,7 +39,7 @@ class VoiceChat(commands.Cog):
                     break
 
                 # 1. Get Brain Response from utils/neural.py
-                reply = get_kenna_response(user_speech)
+                reply = get_kenna_response(ctx.author.id, user_speech)
                 
                 # 2. Generate Voice from utils/speech.py
                 audio_file = generate_voice_file(reply, self.current_voice, config.VOICE_SPEED)
