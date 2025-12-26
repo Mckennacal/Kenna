@@ -33,25 +33,24 @@ def save_memory():
 # Load memory immediately when the bot starts
 load_memory()
 
-def get_kenna_response(user_id, user_input):
-    """Calls Ollama with memory of the last 10 messages for a specific user."""
+def get_kenna_response(user_id, user_name, user_input):  # Added user_name
+    """Calls Ollama with context of WHO is speaking."""
     global user_memories
     
-    # Convert ID to string because JSON only allows string keys
     user_id = str(user_id)
     
-    # 1. Initialize history for new users
     if user_id not in user_memories:
         user_memories[user_id] = []
     
-    # 2. Add the USER'S new message to their history
-    user_memories[user_id].append({'role': 'user', 'content': user_input})
+    # --- KEY FIX: Add the name to the content ---
+    # Instead of just text, we format it as "(Name): Text"
+    user_memories[user_id].append({'role': 'user', 'content': f"({user_name}): {user_input}"})
     
-    # 3. Trim memory (Keep only last 10 messages to save RAM)
-    if len(user_memories[user_id]) > 10:
+    # ... rest of the function stays the same ...
+    # (Trimming logic)
+    if len(user_memories[user_id]) > 20:
         user_memories[user_id] = user_memories[user_id][-10:]
-    
-    # 4. Combine system prompt + their history
+
     messages = [{'role': 'system', 'content': SYSTEM_PROMPT}] + user_memories[user_id]
     
     try:

@@ -21,7 +21,7 @@ def listen_to_mic():
         try:
             # timeout=5 means if you say nothing for 5s, she stops waiting
             # phrase_time_limit=10 means she cuts you off if you ramble for 10s
-            audio = recognizer.listen(source, timeout=2.5, phrase_time_limit=10)
+            audio = recognizer.listen(source, timeout=1, phrase_time_limit=10)
             return recognizer.recognize_google(audio)
         except sr.WaitTimeoutError:
             return None

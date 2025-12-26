@@ -3,9 +3,11 @@ from discord.ext import commands
 import asyncio
 from config import TOKEN, COMMAND_PREFIX
 
+# --- FIX: ENABLE MEMBERS INTENT ---
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
+intents.members = True  # <--- THIS IS THE MISSING KEY
 
 bot = commands.Bot(command_prefix=COMMAND_PREFIX, intents=intents)
 
